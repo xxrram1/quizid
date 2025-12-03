@@ -1528,20 +1528,12 @@
             `;
         }
 
-        // --- Prevent double click sound on mobile (pointerdown/click overlap) ---
-        let _lastClickSound = 0;
-        function playClickOnce() {
-            const now = Date.now();
-            if (now - _lastClickSound < 120) return; // 120ms debounce
-            _lastClickSound = now;
-            if (typeof soundManager !== 'undefined' && soundManager.playClick) {
-                soundManager.playClick();
-            }
-        }
-
+        // --- Global button click sound effect (no delay, all buttons) ---
         document.addEventListener('pointerdown', function(e) {
+            // Only for left click/tap
             if (e.button !== undefined && e.button !== 0) return;
             let el = e.target;
+            // Traverse up to find a clickable button
             while (el && el !== document.body) {
                 if (
                     el.tagName === 'BUTTON' ||
@@ -1549,5 +1541,124 @@
                     el.classList.contains('meme-credit') ||
                     el.getAttribute('role') === 'button'
                 ) {
-                    playClickOnce();
-                    if
+                    if (typeof soundManager !== 'undefined' && soundManager.playClick) {
+                        // Always play sound instantly
+                        soundManager.playClick();
+                        // Then resume context if needed (for Chrome/Safari/Edge policies)
+                        if (soundManager.ctx && soundManager.ctx.state === 'suspended') {
+                            soundManager.ctx.resume();
+                        }
+                    }
+                    break;
+                }
+                el = el.parentElement;
+            }
+        }, true);
+
+        // --- End credits (meme) ---
+        let _creditsTimer = null;
+        let _escapeListener = null;
+
+        function showEndCredits() {
+            const overlay = document.getElementById('endCredits');
+            const roll = document.getElementById('creditsRoll');
+            const wait = document.getElementById('creditsWait');
+            const closeBtn = document.getElementById('closeCreditsBtn');
+            if (!overlay || !roll || !wait || !closeBtn) return;
+
+            // Show overlay and wait message, hide close button
+            overlay.classList.remove('hidden', 'fade-out');
+            overlay.style.opacity = '1';
+            wait.style.display = 'flex';
+            closeBtn.style.display = 'none';
+            roll.textContent = '';
+            roll.classList.remove('animate');
+
+            // Prepare credits text
+            const name = 'อธิย์รัช เกษรแก้ว';
+            const roles = [
+                'ผู้กำกับ', 'ผู้อำนวยการสร้าง', 'บทภาพยนตร์', 'ตากล้อง', 'นักถ่ายภาพ',
+                'นักแสดงนำ', 'นักแสดงสมทบ', 'ทีมสตันท์', 'ทีมเสียง', 'ตัดต่อ',
+                'ผู้ประพันธ์เพลง', 'ผู้ออกแบบฉาก', 'ทีม VFX', 'ทีมเทคนิค', 'ทีมแต่งหน้า',
+                'นักพัฒนา', 'ผู้ออกแบบ UI/UX', 'นักทดสอบ', 'ผู้จัดการโครงการ', 'Special Thanks'
+            ];
+            const lines = [];
+            for (let i = 0; i < 4; i++) {
+                roles.forEach(r => lines.push(`${r}: ${name}`));
+                if (i < 3) lines.push('');
+            }
+
+            // After a short wait, start credits
+            setTimeout(() => {
+                wait.style.display = 'none';
+                closeBtn.style.display = 'block';
+                roll.textContent = lines.join('\n');
+                void roll.offsetWidth;
+                roll.classList.add('animate');
+                try { soundManager.playFanfare(); } catch (e) { }
+                roll.removeEventListener('animationend', _onCreditsAnimationEnd);
+                roll.addEventListener('animationend', _onCreditsAnimationEnd);
+            }, 1000); // 1 second wait
+
+            // attach Escape handler to close overlay
+            if (!_escapeListener) {
+                _escapeListener = function (e) {
+                    if (e.key === 'Escape') closeEndCredits();
+                };
+                document.addEventListener('keydown', _escapeListener);
+            }
+        }
+
+        // Handler for credits roll animation end
+        function _onCreditsAnimationEnd() {
+            // Hide overlay instantly when credits end
+            closeEndCredits();
+        }
+
+        function closeEndCredits() {
+            const overlay = document.getElementById('endCredits');
+            const roll = document.getElementById('creditsRoll');
+            const wait = document.getElementById('creditsWait');
+            const closeBtn = document.getElementById('closeCreditsBtn');
+            if (!overlay) return;
+
+            // Instantly hide overlay and reset roll/wait/closeBtn
+            overlay.classList.add('hidden');
+            overlay.classList.remove('fade-out');
+            if (roll) {
+                roll.classList.remove('animate');
+                roll.textContent = '';
+                roll.removeEventListener('animationend', _onCreditsAnimationEnd);
+            }
+            if (wait) {
+                wait.style.display = 'none';
+            }
+            if (closeBtn) {
+                closeBtn.style.display = 'none';
+            }
+
+            if (_creditsTimer) { clearTimeout(_creditsTimer); _creditsTimer = null; }
+            if (_escapeListener) { document.removeEventListener('keydown', _escapeListener); _escapeListener = null; }
+        }
+        if (window.elementSdk) {
+            window.elementSdk.init({
+                defaultConfig,
+                onConfigChange: (config) => {
+                    if (currentTopic) renderQuestion();
+                    else if (currentSubject) renderTopics();
+                    else renderHome();
+                }
+            });
+        }
+
+        window.addEventListener('load', () => {
+            initCanvas();
+            setupKeyboardShortcuts();
+            renderHome();
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+    </script>
+</body>
+
+</html>
