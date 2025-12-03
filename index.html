@@ -1067,7 +1067,7 @@
 
                         <div class="mb-4 text-sm text-left">
                             <label class="text-gray-600 text-xs font-semibold">จำนวนข้อที่จะทำ:</label>
-                            <select id="questionCountSelect" onchange="questionLimit = this.value === 'full' ? null : parseInt(this.value)" class="w-full mt-2 p-3 rounded-xl border border-gray-200">
+                            <select id="questionCountSelect" onchange="questionLimit = this.value === 'full' ? null : parseInt(this.value)" style="width:100%;margin-top:0.5rem;">
                                 <option value="full">เต็มชุด</option>
                                 <option value="10">10 ข้อ</option>
                                 <option value="20">20 ข้อ</option>
@@ -1502,7 +1502,33 @@
             `;
         }
 
-        // Initialize
+        // --- Global button click sound effect (no delay, all buttons) ---
+        document.addEventListener('pointerdown', function(e) {
+            // Only for left click/tap
+            if (e.button !== undefined && e.button !== 0) return;
+            let el = e.target;
+            // Traverse up to find a clickable button
+            while (el && el !== document.body) {
+                if (
+                    el.tagName === 'BUTTON' ||
+                    el.classList.contains('clay-button') ||
+                    el.classList.contains('meme-credit') ||
+                    el.getAttribute('role') === 'button'
+                ) {
+                    if (typeof soundManager !== 'undefined' && soundManager.playClick) {
+                        // Always play sound instantly
+                        soundManager.playClick();
+                        // Then resume context if needed (for Chrome/Safari/Edge policies)
+                        if (soundManager.ctx && soundManager.ctx.state === 'suspended') {
+                            soundManager.ctx.resume();
+                        }
+                    }
+                    break;
+                }
+                el = el.parentElement;
+            }
+        }, true);
+
         // --- End credits (meme) ---
         let _creditsTimer = null;
         let _escapeListener = null;
